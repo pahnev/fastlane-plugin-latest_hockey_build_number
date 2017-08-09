@@ -13,14 +13,18 @@ module Fastlane
         list_response = http.request(list_request)
         app_list = JSON.parse(list_response.body)['apps']
 
-        app_index = app_list.find_index { |app| app['platform'] == 'iOS' &&  app['bundle_identifier'] == config[:bundle_id] }
+        apps = app_list.select { |app| app['platform'] == 'iOS' && app['bundle_identifier'] == config[:bundle_id] }
 
-        if app_index.nil? then
-            UI.error "No application with bundle id #{config[:bundle_id]}"
-            return nil
+        release_type = config[:release_type]
+        apps = apps.select { |app| app['release_type'] == release_type.to_i } unless release_type.nil?
+
+        if apps.empty?
+          release_type_message = release_type.nil? ? "" : " with release type #{release_type}"
+          UI.error "No application with bundle id #{config[:bundle_id]}" + release_type_message
+          return nil
         end
 
-        app_identifier = app_list[app_index]['public_identifier']
+        app_identifier = apps.first['public_identifier']
 
         details_request = Net::HTTP::Get.new("/api/2/apps/#{app_identifier}/app_versions?page=1")
         details_request['X-HockeyAppToken'] = config[:api_token]
@@ -29,9 +33,9 @@ module Fastlane
         app_details = JSON.parse(details_response.body)
         latest_build = app_details['app_versions'][0]
 
-        if latest_build.nil? then
-            UI.error "The app has no versions yet"
-            return nil
+        if latest_build.nil?
+          UI.error "The app has no versions yet"
+          return nil
         end
 
         return latest_build['version']
@@ -59,6 +63,10 @@ module Fastlane
                                        verify_block: proc do |value|
                                          UI.user_error!("No bundle ID for Hockey given, pass using `bundle_id: 'bundle id'`") unless value and !value.empty?
                                        end),
+          FastlaneCore::ConfigItem.new(key: :release_type,
+                                     env_name: "FL_HOCKEY_RELEASE_TYPE",
+                                     description: "Release type of the app: \"0\" = Beta, \"1\" = Store, \"2\" = Alpha, \"3\" = Enterprise",
+                                     optional: true)
         ]
       end
 
