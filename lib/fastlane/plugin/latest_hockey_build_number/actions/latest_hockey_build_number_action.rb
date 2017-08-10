@@ -31,10 +31,15 @@ module Fastlane
         details_response = http.request(details_request)
 
         app_details = JSON.parse(details_response.body)
-        latest_build = app_details['app_versions'][0]
+
+        bundle_short_version = config[:bundle_short_version]
+        app_details = app_details.select { |app_version| app_version['shortversion'] } unless bundle_short_version.nil?
+
+        latest_build = app_details['app_versions'].first
 
         if latest_build.nil?
-          UI.error "The app has no versions yet"
+          bundle_short_version_message = bundle_short_version.nil? ? "" : " for #{bundle_short_version}"
+          UI.error "The app has no versions yet" + bundle_short_version_message
           return nil
         end
 
@@ -65,7 +70,11 @@ module Fastlane
                                        end),
           FastlaneCore::ConfigItem.new(key: :release_type,
                                      env_name: "FL_HOCKEY_RELEASE_TYPE",
-                                     description: "Release type of the app: \"0\" = Beta, \"1\" = Store, \"2\" = Alpha, \"3\" = Enterprise",
+                                     description: "Release type of the app: \"0\" = Beta, \"1\" = Store, \"2\" = Alpha, \"3\" = Enterprise. Used as an additional filter for the app list",
+                                     optional: true),
+          FastlaneCore::ConfigItem.new(key: :bundle_short_version,
+                                     env_name: "FL_HOCKEY_BUNDLE_SHORT_VERSION",
+                                     description: "The bundle_short_version of your application. Used as an additional filter for the version list",
                                      optional: true)
         ]
       end
