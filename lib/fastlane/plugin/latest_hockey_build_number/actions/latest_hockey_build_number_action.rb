@@ -31,11 +31,12 @@ module Fastlane
         details_response = http.request(details_request)
 
         app_details = JSON.parse(details_response.body)
+        app_versions = app_details['app_versions']
 
         bundle_short_version = config[:bundle_short_version]
-        app_details = app_details.select { |app_version| app_version['shortversion'] } unless bundle_short_version.nil?
+        app_versions = app_versions.select { |app_version| app_version['shortversion'] == bundle_short_version } unless bundle_short_version.nil?
 
-        latest_build = app_details['app_versions'].first
+        latest_build = app_versions.first
 
         if latest_build.nil?
           bundle_short_version_message = bundle_short_version.nil? ? "" : " for #{bundle_short_version}"
@@ -74,7 +75,7 @@ module Fastlane
                                      optional: true),
           FastlaneCore::ConfigItem.new(key: :bundle_short_version,
                                      env_name: "FL_HOCKEY_BUNDLE_SHORT_VERSION",
-                                     description: "The bundle_short_version of your application. Used as an additional filter for the version list",
+                                     description: "The bundle_short_version of your application. Used as an additional filter for the version list. Caution filters short version only for 1st page resutls",
                                      optional: true)
         ]
       end
